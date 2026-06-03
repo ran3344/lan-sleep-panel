@@ -6,3 +6,4 @@ test_api.py
 .env
 runtime/
 *.pid
+*.rar

@@ -1,5 +1,6 @@
 import os
 import ipaddress
+import secrets
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,7 +15,7 @@ class Config:
     DEBUG = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
 
     # 安全配置
-    SECRET_KEY = os.getenv('SECRET_KEY', '')
+    SECRET_KEY = os.getenv('SECRET_KEY', '') or secrets.token_urlsafe(32)
     APP_USERNAME = os.getenv('APP_USERNAME', '')
     APP_PASSWORD = os.getenv('APP_PASSWORD', '')
 
@@ -61,8 +62,6 @@ class Config:
     @classmethod
     def validate(cls):
         """验证必要配置项"""
-        if not cls.SECRET_KEY:
-            raise ValueError("SECRET_KEY 环境变量未设置，请在 .env 文件中配置")
         if not cls.APP_USERNAME:
             raise ValueError("APP_USERNAME 环境变量未设置，请在 .env 文件中配置")
         if not cls.APP_PASSWORD:

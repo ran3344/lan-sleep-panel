@@ -69,7 +69,6 @@ cd 你的仓库名
 
 主要配置项：
 
-- `SECRET_KEY`
 - `APP_USERNAME`
 - `APP_PASSWORD`
 - `IP_WHITELIST`
@@ -85,7 +84,6 @@ FLASK_HOST=0.0.0.0
 FLASK_PORT=5000
 FLASK_DEBUG=false
 
-SECRET_KEY=change_me_to_a_random_secret_key
 APP_USERNAME=admin
 APP_PASSWORD=change_me_password
 
