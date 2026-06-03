@@ -61,23 +61,11 @@ if errorlevel 1 (
     start /wait notepad ".env"
 )
 
-findstr /c:"SECRET_KEY=change_me_session_secret" ".env" >nul
-if not errorlevel 1 (
-    echo Update SECRET_KEY in .env before starting the service.
-    start /wait notepad ".env"
-    findstr /c:"SECRET_KEY=change_me_session_secret" ".env" >nul
-    if not errorlevel 1 (
-        echo SECRET_KEY is still unchanged. Startup cancelled.
-        pause
-        exit /b 1
-    )
-)
-
-findstr /c:"APP_PASSWORD=change_me_login_password" ".env" >nul
+findstr /c:"APP_PASSWORD=change_me_password" ".env" >nul
 if not errorlevel 1 (
     echo Update APP_PASSWORD in .env before starting the service.
     start /wait notepad ".env"
-    findstr /c:"APP_PASSWORD=change_me_login_password" ".env" >nul
+    findstr /c:"APP_PASSWORD=change_me_password" ".env" >nul
     if not errorlevel 1 (
         echo APP_PASSWORD is still unchanged. Startup cancelled.
         pause
