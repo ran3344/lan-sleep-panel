@@ -6,6 +6,7 @@ import logging
 import subprocess
 from datetime import datetime, timedelta
 from functools import wraps
+from logging.handlers import TimedRotatingFileHandler
 
 from flask import (
     Flask,
@@ -33,7 +34,13 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("shutdown_service.log", encoding="utf-8")
+        TimedRotatingFileHandler(
+            "shutdown_service.log",
+            when="midnight",
+            interval=1,
+            backupCount=7,
+            encoding="utf-8",
+        )
     ],
 )
 logger = logging.getLogger(__name__)
