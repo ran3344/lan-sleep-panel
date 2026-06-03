@@ -1,0 +1,19 @@
+{
+  "name": "自动休眠服务",
+  "short_name": "休眠服务",
+  "description": "局域网内控制电脑睡眠和关机的轻应用。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#eef3ff",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>自动休眠服务</title>
+  <meta name="theme-color" content="#eef3ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="自动休眠服务">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6fb;
+      --bg-2: #eef2ff;
+      --panel: rgba(255, 255, 255, 0.66);
+      --panel-strong: rgba(255, 255, 255, 0.82);
+      --line: rgba(114, 138, 191, 0.18);
+      --text: #14233f;
+      --muted: #6e7b97;
+      --blue: #2f6bff;
+      --blue-2: #6fb3ff;
+      --blue-soft: rgba(47, 107, 255, 0.10);
+      --green: #2dbb87;
+      --green-soft: rgba(45, 187, 135, 0.12);
+      --orange: #f59b4c;
+      --orange-soft: rgba(245, 155, 76, 0.12);
+      --danger: #d85866;
+      --danger-soft: rgba(216, 88, 102, 0.10);
+      --shadow: 0 30px 80px rgba(48, 73, 126, 0.16);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "Segoe UI Variable Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 18%, rgba(126, 178, 255, 0.32), transparent 22%),
+        radial-gradient(circle at 88% 12%, rgba(214, 229, 255, 0.72), transparent 20%),
+        radial-gradient(circle at 72% 80%, rgba(185, 245, 231, 0.34), transparent 18%),
+        linear-gradient(180deg, #fbfcff 0%, var(--bg) 32%, var(--bg-2) 100%);
+    }
+    .app-shell {
+      width: min(1280px, calc(100vw - 28px));
+      margin: 0 auto;
+      padding: 24px 0 28px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-mark {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.86) 0%, rgba(237, 243, 255, 0.92) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 20px 40px rgba(74, 105, 173, 0.16);
+      position: relative;
+      backdrop-filter: blur(18px);
+    }
+    .brand-mark::before {
+      content: "";
+      position: absolute;
+      inset: 13px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--blue) 0%, var(--blue-2) 100%);
+      opacity: 0.18;
+    }
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      left: 24px;
+      top: 10px;
+      width: 6px;
+      height: 24px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--blue) 0%, var(--blue-2) 100%);
+      box-shadow: 0 54px 0 0 rgba(0,0,0,0);
+    }
+    .brand-copy h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      font-weight: 800;
+    }
+    .brand-copy p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill-btn,
+    .logout-btn,
+    .primary-btn,
+    .secondary-btn {
+      border: 0;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .pill-btn,
+    .logout-btn {
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      background: rgba(255, 255, 255, 0.62);
+      color: var(--text);
+      box-shadow: 0 14px 26px rgba(71, 92, 138, 0.10);
+      backdrop-filter: blur(18px);
+    }
+    .pill-btn {
+      color: var(--blue);
+      background: rgba(47, 107, 255, 0.08);
+      border-color: rgba(47, 107, 255, 0.12);
+    }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
+      gap: 18px;
+    }
+    .main-stack,
+    .side-stack {
+      display: grid;
+      gap: 18px;
+    }
+    .glass {
+      position: relative;
+      overflow: hidden;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      background: linear-gradient(180deg, rgba(255,255,255,0.76) 0%, rgba(249, 251, 255, 0.66) 100%);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(28px);
+    }
+    .glass::before {
+      content: "";
+      position: absolute;
+      inset: -40px auto auto -40px;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(117, 176, 255, 0.24), transparent 72%);
+      pointer-events: none;
+    }
+    .hero {
+      padding: 20px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .action-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 250px;
+      padding: 22px;
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.74);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.68);
+      display: flex;
+      flex-direction: column;
+    }
+    .action-card::after {
+      content: "";
+      position: absolute;
+      right: -42px;
+      bottom: -58px;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      opacity: 0.48;
+      pointer-events: none;
+    }
+    .sleep-card {
+      background: linear-gradient(180deg, rgba(241, 252, 248, 0.94) 0%, rgba(230, 248, 243, 0.86) 100%);
+    }
+    .sleep-card::after {
+      background: radial-gradient(circle, rgba(45, 187, 135, 0.18), transparent 68%);
+    }
+    .shutdown-card {
+      background: linear-gradient(180deg, rgba(255, 248, 241, 0.94) 0%, rgba(253, 244, 236, 0.86) 100%);
+    }
+    .shutdown-card::after {
+      background: radial-gradient(circle, rgba(245, 155, 76, 0.18), transparent 68%);
+    }
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      width: fit-content;
+    }
+    .sleep-card .kicker {
+      background: var(--green-soft);
+      color: #208f69;
+    }
+    .shutdown-card .kicker {
+      background: var(--orange-soft);
+      color: #c27332;
+    }
+    .action-card h2 {
+      margin: 16px 0 8px;
+      font-size: 30px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+    .action-copy {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+      max-width: 420px;
+    }
+    .primary-btn,
+    .secondary-btn {
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 16px;
+      box-shadow: 0 18px 28px rgba(67, 88, 137, 0.12);
+    }
+    .sleep-submit {
+      background: linear-gradient(135deg, #2dbb87 0%, #71d8ba 100%);
+      color: #fff;
+      width: 168px;
+    }
+    .shutdown-submit {
+      background: linear-gradient(135deg, #f59b4c 0%, #ffbf83 100%);
+      color: #fff;
+    }
+    .secondary-btn {
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--danger);
+      border: 1px solid rgba(216, 88, 102, 0.16);
+    }
+    .note {
+      margin-top: auto;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .schedule-box {
+      margin-bottom: 14px;
+      border: 1px solid rgba(114, 138, 191, 0.12);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.48);
+      overflow: hidden;
+    }
+    .schedule-box summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 14px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .schedule-box summary::-webkit-details-marker {
+      display: none;
+    }
+    .schedule-box summary::after {
+      content: "展开";
+      float: right;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .schedule-box[open] summary::after {
+      content: "收起";
+    }
+    .schedule-inner {
+      margin: 0 14px 14px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid rgba(114, 138, 191, 0.12);
+    }
+    .label {
+      display: block;
+      margin-bottom: 10px;
+      color: #61708d;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .preset-grid label {
+      display: block;
+    }
+    .preset-grid input[type="radio"] {
+      display: none;
+    }
+    .preset {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(114, 138, 191, 0.14);
+      background: rgba(255, 255, 255, 0.88);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .preset-grid input[type="radio"]:checked + .preset {
+      background: rgba(245, 155, 76, 0.14);
+      border-color: rgba(245, 155, 76, 0.28);
+      color: #bf742f;
+      box-shadow: inset 0 0 0 1px rgba(245, 155, 76, 0.10);
+    }
+    .check {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .status-card,
+    .info-card {
+      padding: 20px;
+    }
+    .status-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .status-top h3,
+    .info-card h3 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: var(--green-soft);
+      color: #239a70;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .status-chip::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .stat-grid {
+      display: grid;
+      gap: 10px;
+    }
+    .stat-item {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.52);
+      border: 1px solid rgba(114, 138, 191, 0.10);
+    }
+    .stat-item strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #687796;
+      letter-spacing: 0.08em;
+    }
+    .stat-item span {
+      display: block;
+      font-size: 15px;
+      line-height: 1.7;
+      word-break: break-all;
+    }
+    .info-card p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    .tips {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .tip {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.50);
+      border: 1px solid rgba(114, 138, 191, 0.10);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .flash-wrap {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .flash {
+      padding: 14px 16px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.7;
+      backdrop-filter: blur(14px);
+    }
+    .flash.success {
+      background: rgba(45, 187, 135, 0.12);
+      color: #249d72;
+      border: 1px solid rgba(45, 187, 135, 0.14);
+    }
+    .flash.error {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border: 1px solid rgba(216, 88, 102, 0.12);
+    }
+    @media (max-width: 980px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 760px) {
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+      .preset-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .brand-copy h1 {
+        font-size: 28px;
+      }
+      .action-card h2 {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div class="brand-copy">
+          <h1>自动休眠服务</h1>
+          <p>更像桌面轻应用的局域网控制面板，支持安装到桌面。</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="pill-btn" type="button" data-install-app hidden>安装应用</button>
+        <form method="post" action="{{ url_for('logout') }}">
+          <button class="logout-btn" type="submit">退出登录</button>
+        </form>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-wrap">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="workspace">
+      <div class="main-stack">
+        <section class="glass hero">
+          <div class="hero-grid">
+            <form class="action-card sleep-card" method="post" action="{{ url_for('web_sleep') }}">
+              <div class="kicker">SLEEP</div>
+              <h2>立即睡眠</h2>
+              <p class="action-copy">离开一会儿、临时挂起、晚上先休息，都可以直接点一下。整个操作尽量做得像手机上的小应用按钮。</p>
+              <div class="action-row">
+                <button class="primary-btn sleep-submit" type="submit">现在睡眠</button>
+              </div>
+              <div class="note">点击后会立刻执行，不再弹出多余确认。</div>
+            </form>
+
+            <section class="action-card shutdown-card">
+              <div class="kicker">POWER</div>
+              <h2>定时关机</h2>
+              <p class="action-copy">常用时间默认收起来。只有真的需要定时关机时，再把它展开选择，平时页面更像一个干净的控制面板。</p>
+              <form method="post" action="{{ url_for('web_shutdown') }}">
+                <details class="schedule-box">
+                  <summary>定时设置</summary>
+                  <div class="schedule-inner">
+                    <label class="label">常用时间</label>
+                    <div class="preset-grid">
+                      <label>
+                        <input type="radio" name="delay_preset" value="300" checked>
+                        <span class="preset">5 分钟</span>
+                      </label>
+                      <label>
+                        <input type="radio" name="delay_preset" value="1800">
+                        <span class="preset">30 分钟</span>
+                      </label>
+                      <label>
+                        <input type="radio" name="delay_preset" value="3600">
+                        <span class="preset">1 小时</span>
+                      </label>
+                      <label>
+                        <input type="radio" name="delay_preset" value="10800">
+                        <span class="preset">3 小时</span>
+                      </label>
+                      <label>
+                        <input type="radio" name="delay_preset" value="18000">
+                        <span class="preset">5 小时</span>
+                      </label>
+                      <label>
+                        <input type="radio" name="delay_preset" value="0">
+                        <span class="preset">立即关机</span>
+                      </label>
+                    </div>
+                    <label class="check"><input name="force" type="checkbox">强制关闭正在运行的程序</label>
+                  </div>
+                </details>
+                <div class="action-row">
+                  <button class="primary-btn shutdown-submit" type="submit">执行关机</button>
+                  <button class="secondary-btn" type="submit" formaction="{{ url_for('web_cancel_shutdown') }}">取消关机</button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </section>
+
+        <section class="glass info-card">
+          <h3>轻应用说明</h3>
+          <p>现在这个页面不再是传统的后台表单，而是更接近桌面小应用的使用方式。浏览器支持时，可以通过右上角的“安装应用”直接固定到桌面，之后打开会更像独立窗口。</p>
+          <div class="tips">
+            <div class="tip">睡眠适合“先让电脑休息”，直接点击即可。</div>
+            <div class="tip">关机适合“今天不用了”，展开后选个常用时间即可。</div>
+            <div class="tip">取消关机会立刻撤销已提交的关机计划。</div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="side-stack">
+        <section class="glass status-card">
+          <div class="status-top">
+            <div>
+              <h3>服务状态</h3>
+            </div>
+            <div class="status-chip">服务运行中</div>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-item">
+              <strong>访问地址</strong>
+              <span>http://{{ host }}</span>
+            </div>
+            <div class="stat-item">
+              <strong>健康检查</strong>
+              <span>/api/health</span>
+            </div>
+            <div class="stat-item">
+              <strong>接口登录方式</strong>
+              <span>网页登录后可继续使用 JSON 接口，不再需要 auth_token。</span>
+            </div>
+            <div class="stat-item">
+              <strong>IP 白名单</strong>
+              <span>{{ "已开启" if whitelist_enabled else "未限制" }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="glass info-card">
+          <h3>安装到桌面</h3>
+          <p>如果浏览器支持，会出现“安装应用”。安装后它会像一个独立小程序窗口，不再像普通网页标签页。</p>
+          <div class="tips">
+            <div class="tip">Windows 上的 Chrome / Edge 通常支持“安装应用”或“创建应用快捷方式”。</div>
+            <div class="tip">如果按钮没出现，也可以从浏览器右上角菜单里手动安装或添加到桌面。</div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

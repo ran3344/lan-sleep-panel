@@ -1,0 +1,8 @@
+.claude/
+.venv
+__pycache__/
+*.log
+test_api.py
+.env
+runtime/
+*.pid
